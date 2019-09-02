@@ -28,6 +28,14 @@ message PutRequest {
 
 message PutResponse {}
 
+message BatchPutRequest {
+    repeated PutRequest requests = 1;
+}
+
+message BatchPutResponse {
+    repeated PutResponse responses = 1;
+}
+
 message DeleteRequest {
     string cf = 1;
     bytes key = 2;
