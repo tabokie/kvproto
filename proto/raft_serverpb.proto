@@ -5,6 +5,7 @@ import "eraftpb.proto";
 import "metapb.proto";
 import "kvrpcpb.proto";
 import "disk_usage.proto";
+import "encryptionpb.proto";
 import "rustproto.proto";
 
 option (rustproto.lite_runtime_all) = true;
@@ -55,7 +56,8 @@ message SnapshotMeta {
 
 message SnapshotChunk {
     RaftMessage message = 1;
-    bytes data = 2;
+    encryptionpb.FileInfo encryption_info = 2;
+    bytes data = 3;
 }
 
 message Done {}
