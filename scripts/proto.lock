@@ -16019,6 +16019,31 @@
             ]
           },
           {
+            "name": "AvailabilityContext",
+            "fields": [
+              {
+                "id": 1,
+                "name": "from_region_id",
+                "type": "uint64"
+              },
+              {
+                "id": 2,
+                "name": "from_region_epoch",
+                "type": "metapb.RegionEpoch"
+              },
+              {
+                "id": 3,
+                "name": "unavailable",
+                "type": "bool"
+              },
+              {
+                "id": 4,
+                "name": "trimmed",
+                "type": "bool"
+              }
+            ]
+          },
+          {
             "name": "FlushMemtable",
             "fields": [
               {
@@ -16091,6 +16116,11 @@
                 "id": 7,
                 "name": "flush_memtable",
                 "type": "FlushMemtable"
+              },
+              {
+                "id": 8,
+                "name": "availability_context",
+                "type": "AvailabilityContext"
               }
             ]
           }
