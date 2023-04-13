@@ -5,6 +5,7 @@ import "coprocessor.proto";
 import "kvrpcpb.proto";
 import "mpp.proto";
 import "raft_serverpb.proto";
+import "disaggregated.proto";
 
 import "gogoproto/gogo.proto";
 import "rustproto.proto";
@@ -75,6 +76,7 @@ service Tikv {
     rpc Raft(stream raft_serverpb.RaftMessage) returns (raft_serverpb.Done) {}
     rpc BatchRaft(stream BatchRaftMessage) returns (raft_serverpb.Done) {}
     rpc Snapshot(stream raft_serverpb.SnapshotChunk) returns (raft_serverpb.Done) {}
+    rpc TabletSnapshot(stream raft_serverpb.TabletSnapshotRequest) returns (stream raft_serverpb.TabletSnapshotResponse) {}
 
     // Sent from PD or TiDB to a TiKV node.
     rpc SplitRegion (kvrpcpb.SplitRegionRequest) returns (kvrpcpb.SplitRegionResponse) {}
@@ -114,6 +116,21 @@ service Tikv {
     rpc Compact(kvrpcpb.CompactRequest) returns (kvrpcpb.CompactResponse);
     /// Get the information about history lock waiting from TiKV.
     rpc GetLockWaitHistory(kvrpcpb.GetLockWaitHistoryRequest) returns (kvrpcpb.GetLockWaitHistoryResponse);
+
+    /// Get system table from TiFlash
+    rpc GetTiFlashSystemTable(kvrpcpb.TiFlashSystemTableRequest) returns (kvrpcpb.TiFlashSystemTableResponse) {}
+
+    // These are for TiFlash disaggregated architecture
+    /// Try to lock a S3 object, atomically
+    rpc tryAddLock(disaggregated.TryAddLockRequest) returns (disaggregated.TryAddLockResponse) {};
+    /// Try to delete a S3 object, atomically
+    rpc tryMarkDelete(disaggregated.TryMarkDeleteRequest) returns (disaggregated.TryMarkDeleteResponse) {};
+    /// Build the disaggregated task on TiFlash write node
+    rpc EstablishDisaggTask(disaggregated.EstablishDisaggTaskRequest) returns (disaggregated.EstablishDisaggTaskResponse) {}
+    /// Exchange page data between TiFlash write node and compute node
+    rpc FetchDisaggPages(disaggregated.FetchDisaggPagesRequest) returns (stream disaggregated.PagesPacket) {}
+    /// Compute node get configuration from Write node
+    rpc GetDisaggConfig(disaggregated.GetDisaggConfigRequest) returns (disaggregated.GetDisaggConfigResponse) {}
 }
 
 message BatchCommandsRequest {

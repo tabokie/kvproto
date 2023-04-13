@@ -6,6 +6,7 @@ import "errorpb.proto";
 import "eraftpb.proto";
 import "kvrpcpb.proto";
 import "import_sstpb.proto";
+import "raft_serverpb.proto";
 import "rustproto.proto";
 
 option (rustproto.lite_runtime_all) = true;
@@ -198,7 +199,10 @@ message PrepareMergeRequest {
 
 message PrepareMergeResponse {}
 
-message PrepareFlashbackRequest {}
+message PrepareFlashbackRequest {
+    // The start_ts that the current flashback progress is using.
+    uint64 start_ts = 1;
+}
 
 message PrepareFlashbackResponse {}
 
@@ -210,6 +214,8 @@ message CommitMergeRequest {
     metapb.Region source = 1;
     uint64 commit = 2;
     repeated eraftpb.Entry entries = 3;
+    // Used in v2. When it's present, `source` and `commit` will not be set.
+    raft_serverpb.RegionLocalState source_state = 4;
 }
 
 message CommitMergeResponse {}

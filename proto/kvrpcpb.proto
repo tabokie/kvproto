@@ -86,6 +86,14 @@ message PrewriteRequest {
         DO_CONSTRAINT_CHECK = 2;
     }
 
+    // for_update_ts constriants that should be checked when prewriting a pessimistic transaction.
+    message ForUpdateTSConstraint {
+        // The index of key in the prewrite request that should be checked.
+        uint32 index = 1;
+        // The expected for_update_ts of the pessimistic lock of the key.
+        uint64 expected_for_update_ts = 2;
+    }
+
     Context context = 1;
     // The data to be written to the database.
     repeated Mutation mutations = 2;
@@ -120,6 +128,9 @@ message PrewriteRequest {
     uint64 max_commit_ts = 14;
     // The level of assertion to use on this prewrte request.
     AssertionLevel assertion_level = 15;
+    // for_update_ts constriants that should be checked when prewriting a pessimistic transaction.
+    // See https://github.com/tikv/tikv/issues/14311
+    repeated ForUpdateTSConstraint for_update_ts_constraints = 16;
 }
 
 message PrewriteResponse {
@@ -840,6 +851,14 @@ message Context {
 
     // Different from resource_group_tag, it's used for resource control for each resource group
     string resource_group_name = 26;
+
+    // If `busy_threshold_ms` is given, TiKV can reject the request and return a `ServerIsBusy`
+    // error before processing if the estimated waiting duration exceeds the threshold.
+    uint32 busy_threshold_ms = 27;
+
+    // The keyspace that the request is sent to.
+    // NOTE: This field is only meaningful while the api_version is V2.
+    uint32 keyspace_id = 32;
 }
 
 // The API version the server and the client is using.
@@ -910,6 +929,10 @@ message LockInfo {
     bool use_async_commit = 8;
     uint64 min_commit_ts = 9;
     repeated bytes secondaries = 10;
+    // The time elapsed since last update of lock wait info when waiting.
+    // It's used in timeout errors. 0 means unknown or not applicable. 
+    // It can be used to help the client decide whether to try resolving the lock.
+    uint64 duration_to_last_update_ms = 11;
 }
 
 message KeyError {
@@ -1013,6 +1036,24 @@ message TimeDetail {
     uint64 total_rpc_wall_time_ns = 4;
 }
 
+message TimeDetailV2 {
+    // Off-cpu wall time elapsed in TiKV side. Usually this includes queue waiting time and
+    // other kind of waitings in series. (Wait time in the raftstore is not included.)
+    uint64 wait_wall_time_ns = 1;
+    // Off-cpu and on-cpu wall time elapsed to actually process the request payload. It does not
+    // include `wait_wall_time` and `suspend_wall_time`.
+    // This field is very close to the CPU time in most cases. Some wait time spend in RocksDB
+    // cannot be excluded for now, like Mutex wait time, which is included in this field, so that
+    // this field is called wall time instead of CPU time.
+    uint64 process_wall_time_ns = 2;
+    // Cpu wall time elapsed that task is waiting in queue.
+    uint64 process_suspend_wall_time_ns = 3;
+    // KV read wall Time means the time used in key/value scan and get.
+    uint64 kv_read_wall_time_ns = 4;
+    // Total wall clock time spent on this RPC in TiKV .
+    uint64 total_rpc_wall_time_ns = 5;
+}
+
 message ScanInfo {
     int64 total = 1;
     int64 processed = 2;
@@ -1091,6 +1132,7 @@ message ExecDetails {
 
 message ExecDetailsV2 {
     // Available when ctx.record_time_stat = true or meet slow query.
+    // deprecated. Should use `time_detail_v2` instead.
     TimeDetail time_detail = 1;
 
     // Available when ctx.record_scan_stat = true or meet slow query.
@@ -1098,6 +1140,8 @@ message ExecDetailsV2 {
 
     // Raftstore writing durations of the request. Only available for some write requests.
     WriteDetail write_detail = 3;
+    // Available when ctx.record_time_stat = true or meet slow query.
+    TimeDetailV2 time_detail_v2 = 4;
 }
 
 message WriteDetail {
@@ -1418,6 +1462,11 @@ message CompactRequest {
     // TODO: this is information that TiKV doesn't need to know.
     // See https://github.com/pingcap/kvproto/issues/912
     int64 logical_table_id = 3;
+
+    // API version of the request
+    APIVersion api_version = 7;
+    // Keyspace of the table located in.
+    uint32 keyspace_id = 8;
 }
 
 message CompactResponse {
@@ -1429,4 +1478,12 @@ message CompactResponse {
 
     bytes compacted_start_key = 3;
     bytes compacted_end_key = 4;
+}
+
+message TiFlashSystemTableRequest {
+    string sql = 1;
+}
+
+message TiFlashSystemTableResponse {
+    bytes data = 1 [(gogoproto.customtype) = "github.com/pingcap/kvproto/pkg/sharedbytes.SharedBytes", (gogoproto.nullable) = false];
 }

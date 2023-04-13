@@ -11,6 +11,36 @@ check_protoc_version() {
     return 1
 }
 
-if ! check_protoc_version; then
+check-protos-compatible() {
+    GOPATH=$(go env GOPATH)
+    if [ -z $GOPATH ]; then
+        printf "Error: the environment variable GOPATH is not set, please set it before running %s\n" $PROGRAM > /dev/stderr
+        exit 1
+    fi
+    export PATH=$GOPATH/bin:$PATH
+
+    if [ ! -f "$GOPATH/bin/protolock" ]; then
+        GO111MODULE=off go get github.com/nilslice/protolock/cmd/protolock
+	    GO111MODULE=off go install github.com/nilslice/protolock/cmd/protolock
+	fi
+
+    if protolock status -lockdir=scripts -protoroot=proto; then
+        protolock commit -lockdir=scripts -protoroot=proto
+    else
+        echo "Meet break compatibility problem, please check the code."
+        # In order not to block local branch development, when meet break compatibility will force to update `proto.lock`.
+        protolock commit --force -lockdir=scripts -protoroot=proto
+    fi
+    # If the output message is encountered, please add proto.lock to git as well.
+    git diff scripts/proto.lock | cat
+    git diff --quiet scripts/proto.lock
+    if [ $? -ne 0 ]; then
+        echo "Please add proto.lock to git."
+        return 1
+    fi
+    return 0
+}
+
+if ! check_protoc_version || ! check-protos-compatible; then
 	exit 1
 fi

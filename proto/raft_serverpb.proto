@@ -62,6 +62,60 @@ message SnapshotChunk {
 
 message Done {}
 
+message TabletSnapshotFileMeta {
+    uint64 file_size = 1;
+    string file_name = 2;
+    // Some block data.
+    bytes head_chunk = 3;
+    // trailing data including checksum.
+    bytes trailing_chunk = 4;
+}
+
+// Snapshot preview for server to decide whether skip some files.
+// Server should send back an `AcceptedSnapshotFile` to let client
+// keep sending specified files. Only SST files can be skipped, all
+// other files should always be sent.
+message TabletSnapshotPreview {
+    repeated TabletSnapshotFileMeta metas = 1;
+    // There may be too many metas, use a flag to indicate all metas
+    // are sent.
+    bool end = 2;
+}
+
+message TabletSnapshotFileChunk {
+    uint64 file_size = 1;
+    string file_name = 2;
+    bytes data = 3;
+}
+
+message TabletSnapshotHead {
+    RaftMessage message = 1;
+    bool use_cache = 2;
+}
+
+message TabletSnapshotEnd {
+    // Checksum of all data sent in `TabletSnapshotFileChunk.data` and
+    // `TabletSnapshotFileChunk.file_name`.
+    uint64 checksum = 1;
+}
+
+message TabletSnapshotRequest {
+    oneof payload {
+        TabletSnapshotHead head = 1;
+        TabletSnapshotPreview preview = 2;
+        TabletSnapshotFileChunk chunk = 3;
+        TabletSnapshotEnd end = 4;
+    }
+}
+
+message AcceptedSnapshotFiles {
+    repeated string file_name = 1;
+}
+
+message TabletSnapshotResponse {
+    AcceptedSnapshotFiles files = 1;
+}
+
 message KeyValue {
     bytes key      = 1;
     bytes value    = 2;
@@ -155,6 +209,13 @@ message RegionSequenceNumberRelation {
     RegionLocalState region_state = 4;
 }
 
+message AvailabilityContext {
+    uint64 from_region_id = 1;
+    metapb.RegionEpoch from_region_epoch = 2;
+    bool unavailable = 3;
+    bool trimmed = 4;
+}
+
 enum ExtraMessageType {
     MsgRegionWakeUp = 0;
     MsgWantRollbackMerge = 1;
@@ -172,6 +233,11 @@ enum ExtraMessageType {
     // Message means that `from` is tombstone. Leader can then update removed_records.
     MsgGcPeerRequest = 11;
     MsgGcPeerResponse = 12;
+    MsgFlushMemtable = 13;
+}
+
+message FlushMemtable {
+    uint64 region_id = 1;
 }
 
 message CheckGcPeer {
@@ -198,4 +264,7 @@ message ExtraMessage {
     // Flag for forcely wake up hibernate regions if true.
     bool forcely_awaken = 5;
     CheckGcPeer check_gc_peer = 6;
+    FlushMemtable flush_memtable = 7;
+    // Used by `MsgAvailabilityRequest` and `MsgAvailabilityResponse` in v2.
+    AvailabilityContext availability_context = 8;
 }

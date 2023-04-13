@@ -34,6 +34,8 @@ option java_package = "org.tikv.kvproto";
 service ImportSST {
     // Switch to normal/import mode.
     rpc SwitchMode(SwitchModeRequest) returns (SwitchModeResponse) {}
+    // Get import mode(normal/import).
+    rpc GetMode(GetModeRequest) returns (GetModeResponse) {}
     // Upload an SST file to a server.
     rpc Upload(stream UploadRequest) returns (UploadResponse) {}
     // Ingest an uploaded SST file to a region.
@@ -73,6 +75,13 @@ message SwitchModeRequest {
 }
 
 message SwitchModeResponse {
+}
+
+message GetModeRequest {
+}
+
+message GetModeResponse {
+    SwitchMode mode = 1;
 }
 
 message Range {
@@ -137,6 +146,7 @@ message CompactRequest {
     // Compact all files to the bottommost level if the output level is -1.
     Range range = 1;
     int32 output_level = 2;
+    kvrpcpb.Context context = 3;
 }
 
 message CompactResponse {
